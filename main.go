@@ -157,7 +157,7 @@ func saveToken(file string, token *oauth2.Token) {
 func query(srv *calendar.Service, calendarID string) {
 	t := time.Now()
 	tMin := t.Format(time.RFC3339)
-	tMax := t.Add(2 * 24 * time.Hour).Format(time.RFC3339)
+	tMax := t.Add(24 * time.Hour).Format(time.RFC3339)
 
 	events, err := srv.Events.List(calendarID).ShowDeleted(false).
 		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(10).OrderBy("startTime").Do()
@@ -165,7 +165,7 @@ func query(srv *calendar.Service, calendarID string) {
 		log.Fatalf("Unable to retrieve next ten of the user's events. %v", err)
 	}
 
-	fmt.Println("Upcoming events:")
+	fmt.Printf("Upcoming events for %s:\n", calendarID)
 	if len(events.Items) > 0 {
 		for _, i := range events.Items {
 			var when string
@@ -173,10 +173,20 @@ func query(srv *calendar.Service, calendarID string) {
 			// So only Date is available.
 			if i.Start.DateTime != "" {
 				when = i.Start.DateTime
+				startTime, err := time.Parse(time.RFC3339, i.Start.DateTime)
+				if err != nil {
+					log.Fatalf("Failed to parse event's time. %v", err)
+				}
+
+				if t.After(startTime) {
+					fmt.Printf("Happening now: %s (%s)\n", i.Summary, when)
+				} else {
+					fmt.Printf("%s (%s)\n", i.Summary, when)
+				}
 			} else {
 				when = i.Start.Date
+				fmt.Printf("Full-day: %s (%s)\n", i.Summary, when)
 			}
-			fmt.Printf("%s (%s)\n", i.Summary, when)
 		}
 	} else {
 		fmt.Printf("No upcoming events found.\n")
