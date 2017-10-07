@@ -31,9 +31,10 @@ func main() {
 			os.Exit(0)
 		default:
 			calendarID = os.Args[1]
-			query(srv, calendarID)
 		}
 	}
+
+	query(srv, calendarID)
 }
 
 // getService does the oauth dance and creates a service from the provided credentials
