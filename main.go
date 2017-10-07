@@ -18,12 +18,32 @@ import (
 )
 
 func main() {
+	srv := getService()
+
+	calendarID := "primary"
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--help":
+			fmt.Printf("Usage: galendar [calendar]\n")
+			os.Exit(0)
+		case "-h":
+			fmt.Printf("Usage: galendar [calendar]\n")
+			os.Exit(0)
+		default:
+			calendarID = os.Args[1]
+			query(srv, calendarID)
+		}
+	}
+}
+
+// getService does the oauth dance and creates a service from the provided credentials
+func getService() *calendar.Service {
 	ctx := context.Background()
 
-	// TODO: Pass the path to this file and let the binary initialise the config
-	b, err := ioutil.ReadFile("client_secret.json")
+	// Get client secret
+	b, err := getClientSecret()
 	if err != nil {
-		log.Fatalf("Unable to read client secret file: %v", err)
+		log.Fatalf("Unable to get client secret file: %v", err)
 	}
 
 	// If modifying these scopes, delete your previously saved credentials
@@ -39,31 +59,23 @@ func main() {
 		log.Fatalf("Unable to retrieve calendar Client %v", err)
 	}
 
-	t := time.Now()
-	tMin := t.Format(time.RFC3339)
-	tMax := t.Add(2 * 24 * time.Hour).Format(time.RFC3339)
-	events, err := srv.Events.List("jutkko@gmail.com").ShowDeleted(false).
-		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(10).OrderBy("startTime").Do()
+	return srv
+}
+
+// getClientSecret read the json file in ~/.credentials
+func getClientSecret() ([]byte, error) {
+	usr, err := user.Current()
 	if err != nil {
-		log.Fatalf("Unable to retrieve next ten of the user's events. %v", err)
+		return nil, err
 	}
 
-	fmt.Println("Upcoming events:")
-	if len(events.Items) > 0 {
-		for _, i := range events.Items {
-			var when string
-			// If the DateTime is an empty string the Event is an all-day Event.
-			// So only Date is available.
-			if i.Start.DateTime != "" {
-				when = i.Start.DateTime
-			} else {
-				when = i.Start.Date
-			}
-			fmt.Printf("%s (%s)\n", i.Summary, when)
-		}
-	} else {
-		fmt.Printf("No upcoming events found.\n")
+	tokenCacheDir := filepath.Join(usr.HomeDir, ".credentials/galendar_client_secret.json")
+	b, err := ioutil.ReadFile(tokenCacheDir)
+	if err != nil {
+		log.Fatalf("Unable to read client secret file: %v", err)
 	}
+
+	return b, nil
 }
 
 // getClient uses a Context and Config to retrieve a Token
@@ -89,6 +101,7 @@ func tokenCacheFile() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	tokenCacheDir := filepath.Join(usr.HomeDir, ".credentials")
 	os.MkdirAll(tokenCacheDir, 0700)
 	return filepath.Join(tokenCacheDir, "calendar-go-quickstart.json"), err
@@ -101,6 +114,7 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	t := &oauth2.Token{}
 	err = json.NewDecoder(f).Decode(t)
 	defer f.Close()
@@ -134,6 +148,36 @@ func saveToken(file string, token *oauth2.Token) {
 	if err != nil {
 		log.Fatalf("Unable to cache oauth token: %v", err)
 	}
+
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
+}
+
+func query(srv *calendar.Service, calendarID string) {
+	t := time.Now()
+	tMin := t.Format(time.RFC3339)
+	tMax := t.Add(2 * 24 * time.Hour).Format(time.RFC3339)
+
+	events, err := srv.Events.List(calendarID).ShowDeleted(false).
+		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(10).OrderBy("startTime").Do()
+	if err != nil {
+		log.Fatalf("Unable to retrieve next ten of the user's events. %v", err)
+	}
+
+	fmt.Println("Upcoming events:")
+	if len(events.Items) > 0 {
+		for _, i := range events.Items {
+			var when string
+			// If the DateTime is an empty string the Event is an all-day Event.
+			// So only Date is available.
+			if i.Start.DateTime != "" {
+				when = i.Start.DateTime
+			} else {
+				when = i.Start.Date
+			}
+			fmt.Printf("%s (%s)\n", i.Summary, when)
+		}
+	} else {
+		fmt.Printf("No upcoming events found.\n")
+	}
 }
