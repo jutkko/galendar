@@ -70,8 +70,8 @@ func getClientSecret() ([]byte, error) {
 		return nil, err
 	}
 
-	tokenCacheDir := filepath.Join(usr.HomeDir, ".credentials/galendar_client_secret.json")
-	b, err := ioutil.ReadFile(tokenCacheDir)
+	clientSecretFile := filepath.Join(usr.HomeDir, ".credentials/galendar_client_secret.json")
+	b, err := ioutil.ReadFile(clientSecretFile)
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
@@ -104,8 +104,7 @@ func tokenCacheFile() (string, error) {
 	}
 
 	tokenCacheDir := filepath.Join(usr.HomeDir, ".credentials")
-	os.MkdirAll(tokenCacheDir, 0700)
-	return filepath.Join(tokenCacheDir, "calendar-go-quickstart.json"), err
+	return filepath.Join(tokenCacheDir, "galendar_client_token.json"), err
 }
 
 // tokenFromFile retrieves a Token from a given file path.
