@@ -13,6 +13,14 @@ Happening now: Coding (2017-10-08T11:00:00+01:00)
 阅读 (2017-10-08T19:00:00+01:00)
 ```
 
+## Fuzzy matching
+galendar can also infer the calendar from an inpartial input, e.g., when the
+email is long and you only remember a part of it. `galendar someone` or
+`galendar one` will also return the correct result. Note that in order to use
+this, you must have the calendar
+[added](https://support.google.com/calendar/answer/37100?co=GENIE.Platform%3DDesktop&hl=en)
+to your calendar list.
+
 # Installation
 Run
 
