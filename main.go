@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/schollz/closestmatch"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -20,7 +21,7 @@ import (
 func main() {
 	srv := getService()
 
-	calendarID := "primary"
+	calendar := "primary"
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "--help":
@@ -30,11 +31,11 @@ func main() {
 			fmt.Printf("Usage: galendar [calendar]\n")
 			os.Exit(0)
 		default:
-			calendarID = os.Args[1]
+			calendar = os.Args[1]
 		}
 	}
 
-	query(srv, calendarID)
+	query(srv, calendar)
 }
 
 // getService does the oauth dance and creates a service from the provided credentials
@@ -153,15 +154,23 @@ func saveToken(file string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func query(srv *calendar.Service, calendarID string) {
+func query(srv *calendar.Service, calendar string) {
 	t := time.Now()
 	tMin := t.Format(time.RFC3339)
 	tMax := t.Add(24 * time.Hour).Format(time.RFC3339)
 
+	calendarID, err := getIDFromList(srv, calendar)
+	if err != nil {
+		log.Fatalf("Unable to find a calendar from the provided calendar %s: %v", calendarID, err)
+	}
+	if calendarID == "" {
+		log.Fatalf("No matching calendar from the provided calendar: %s", calendar)
+	}
+
 	events, err := srv.Events.List(calendarID).ShowDeleted(false).
 		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(10).OrderBy("startTime").Do()
 	if err != nil {
-		log.Fatalf("Unable to retrieve next ten of the user's events. %v", err)
+		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
 	}
 
 	fmt.Printf("Upcoming events for %s:\n", calendarID)
@@ -174,7 +183,7 @@ func query(srv *calendar.Service, calendarID string) {
 				when = i.Start.DateTime
 				startTime, err := time.Parse(time.RFC3339, i.Start.DateTime)
 				if err != nil {
-					log.Fatalf("Failed to parse event's time. %v", err)
+					log.Fatalf("Failed to parse event's time: %v", err)
 				}
 
 				if t.After(startTime) {
@@ -190,4 +199,21 @@ func query(srv *calendar.Service, calendarID string) {
 	} else {
 		fmt.Printf("No upcoming events found.\n")
 	}
+}
+
+func getIDFromList(srv *calendar.Service, calendarID string) (string, error) {
+	list, err := srv.CalendarList.List().Do()
+	if err != nil {
+		return "", err
+	}
+
+	infos := []string{}
+	bagSizes := []int{3}
+	for _, calendar := range list.Items {
+		infos = append(infos, calendar.Id)
+	}
+
+	cm := closestmatch.New(infos, bagSizes)
+
+	return cm.Closest(calendarID), nil
 }
