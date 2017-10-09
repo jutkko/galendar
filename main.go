@@ -21,7 +21,7 @@ import (
 func main() {
 	srv := getService()
 
-	calendar := "primary"
+	var calendar string
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "--help":
@@ -159,21 +159,32 @@ func query(srv *calendar.Service, calendar string) {
 	tMin := t.Format(time.RFC3339)
 	tMax := t.Add(24 * time.Hour).Format(time.RFC3339)
 
-	calendarID, err := getIDFromList(srv, calendar)
-	if err != nil {
-		log.Fatalf("Unable to find a calendar from the provided calendar %s: %v", calendarID, err)
-	}
-	if calendarID == "" {
-		log.Fatalf("No matching calendar from the provided calendar: %s", calendar)
+	var calendarID string
+	var err error
+	if calendar != "" {
+		calendarID, err = getIDFromList(srv, calendar)
+		if err != nil {
+			log.Fatalf("Unable to find a calendar from the provided calendar %s: %v", calendarID, err)
+		}
+
+		if calendarID == "" {
+			log.Fatalf("No matching calendar from the provided calendar: %s", calendar)
+		}
+
+		if calendar != calendarID {
+			fmt.Printf("No exact match for %s, but found %s\n\n", calendar, calendarID)
+		}
+	} else {
+		calendarID = "primary"
 	}
 
 	events, err := srv.Events.List(calendarID).ShowDeleted(false).
 		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(10).OrderBy("startTime").Do()
 	if err != nil {
-		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
+		log.Fatalf("Unable to retrieve next ten of the user's events: %v for calendar %s", err, calendarID)
 	}
 
-	fmt.Printf("Upcoming events for %s:\n", calendarID)
+	fmt.Printf("Upcoming events for %s:\n\n", calendarID)
 	if len(events.Items) > 0 {
 		for _, i := range events.Items {
 			var when string
