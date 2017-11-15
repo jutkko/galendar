@@ -8,8 +8,8 @@ access to the calendar, just do `galendar someone@example.com`. An example outpu
 can look like
 ```
 Upcoming events for someone@example.com:
-Full-day: Weekend Yey (2017-10-08)
-Happening now: Coding (11:00-11:30)
+Full-day: Weekend Yey (2017-10-08 @ Home)
+Happening now: Coding (11:00-11:30 @ -)
 阅读 (19:00-20:00)
 ```
 
