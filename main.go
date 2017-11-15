@@ -175,7 +175,7 @@ func query(srv *calendar.Service, calendar string) {
 	}
 
 	events, err := srv.Events.List(calendarID).ShowDeleted(false).
-		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(10).OrderBy("startTime").Do()
+		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(20).OrderBy("startTime").Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve next ten of the user's events: %v for calendar %s", err, calendarID)
 	}
