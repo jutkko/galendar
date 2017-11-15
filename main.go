@@ -198,9 +198,9 @@ func query(srv *calendar.Service, calendar string) {
 				start = onlyShowTime(start)
 				end = onlyShowTime(end)
 				if t.After(startTime) {
-					fmt.Printf("Happening now: %s (%s-%s)\n", i.Summary, start, end)
+					fmt.Printf("Happening now: %s\n", fmtEvent(i.Summary, start, end, i.Location))
 				} else {
-					fmt.Printf("%s (%s-%s)\n", i.Summary, start, end)
+					fmt.Printf("%s\n", fmtEvent(i.Summary, start, end, i.Location))
 				}
 			} else {
 				start = i.Start.Date
@@ -212,9 +212,19 @@ func query(srv *calendar.Service, calendar string) {
 	}
 }
 
+func fmtEvent(summary, startTime, endTime, location string) string {
+	if location == "" {
+		location = "-"
+	}
+
+	return fmt.Sprintf("%s (%s-%s @ %s)", summary, startTime, endTime, location)
+}
+
+// Transforms dateTime to only have hh:mm
 func onlyShowTime(dateTime string) string {
-	time := strings.Split(strings.Split(dateTime, "T")[1], "Z")[0]
-	return time
+	time := strings.Split(strings.Split(strings.Split(dateTime, "T")[1], "Z")[0], ":")[:2]
+	result := strings.Join(time, ":")
+	return result
 }
 
 func getIDFromList(srv *calendar.Service, calendarID string) (string, error) {
