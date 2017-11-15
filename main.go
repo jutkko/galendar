@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/schollz/closestmatch"
@@ -72,12 +73,7 @@ func getClientSecret() ([]byte, error) {
 	}
 
 	clientSecretFile := filepath.Join(usr.HomeDir, ".credentials/galendar_client_secret.json")
-	b, err := ioutil.ReadFile(clientSecretFile)
-	if err != nil {
-		log.Fatalf("Unable to read client secret file: %v", err)
-	}
-
-	return b, nil
+	return ioutil.ReadFile(clientSecretFile)
 }
 
 // getClient uses a Context and Config to retrieve a Token
@@ -187,29 +183,38 @@ func query(srv *calendar.Service, calendar string) {
 	fmt.Printf("Upcoming events for %s:\n\n", calendarID)
 	if len(events.Items) > 0 {
 		for _, i := range events.Items {
-			var when string
+			var start string
+			var end string
 			// If the DateTime is an empty string the Event is an all-day Event.
 			// So only Date is available.
 			if i.Start.DateTime != "" {
-				when = i.Start.DateTime
-				startTime, err := time.Parse(time.RFC3339, i.Start.DateTime)
+				start = i.Start.DateTime
+				end = i.End.DateTime
+				startTime, err := time.Parse(time.RFC3339, start)
 				if err != nil {
 					log.Fatalf("Failed to parse event's time: %v", err)
 				}
 
+				start = onlyShowTime(start)
+				end = onlyShowTime(end)
 				if t.After(startTime) {
-					fmt.Printf("Happening now: %s (%s)\n", i.Summary, when)
+					fmt.Printf("Happening now: %s (%s-%s)\n", i.Summary, start, end)
 				} else {
-					fmt.Printf("%s (%s)\n", i.Summary, when)
+					fmt.Printf("%s (%s-%s)\n", i.Summary, start, end)
 				}
 			} else {
-				when = i.Start.Date
-				fmt.Printf("Full-day: %s (%s)\n", i.Summary, when)
+				start = i.Start.Date
+				fmt.Printf("Full-day: %s (%s)\n", i.Summary, start)
 			}
 		}
 	} else {
 		fmt.Printf("No upcoming events found.\n")
 	}
+}
+
+func onlyShowTime(dateTime string) string {
+	time := strings.Split(strings.Split(dateTime, "T")[1], "Z")[0]
+	return time
 }
 
 func getIDFromList(srv *calendar.Service, calendarID string) (string, error) {
