@@ -9,8 +9,8 @@ can look like
 ```
 Upcoming events for someone@example.com:
 Full-day: Weekend Yey (2017-10-08)
-Happening now: Coding (2017-10-08T11:00:00+01:00)
-阅读 (2017-10-08T19:00:00+01:00)
+Happening now: Coding (11:00-11:30)
+阅读 (19:00-20:00)
 ```
 
 ## Fuzzy matching
