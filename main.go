@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/schollz/closestmatch"
@@ -26,10 +25,10 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "--help":
-			fmt.Printf("Usage: galendar [calendar]\n")
-			os.Exit(0)
+			fallthrough
 		case "-h":
-			fmt.Printf("Usage: galendar [calendar]\n")
+			fmt.Printf("Usage: galendar [someone's name]\n")
+			fmt.Printf("  To find someone's calendar events\n")
 			os.Exit(0)
 		default:
 			calendar = os.Args[1]
@@ -151,14 +150,62 @@ func saveToken(file string, token *oauth2.Token) {
 }
 
 func query(srv *calendar.Service, calendar string) {
-	t := time.Now()
-	tMin := t.Format(time.RFC3339)
-	tMax := t.Add(24 * time.Hour).Format(time.RFC3339)
+	currTime := time.Now()
+	tMin := currTime.Format(time.RFC3339)
+	tMax := currTime.Add(48 * time.Hour).Format(time.RFC3339)
 
+	calendarID := getMatchingCalendar(calendar, srv)
+	events, err := srv.Events.List(calendarID).ShowDeleted(false).
+		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(10).OrderBy("startTime").Do()
+	if err != nil {
+		log.Fatalf("Unable to retrieve next ten of the user's events: %v for calendar: %s", err, calendarID)
+	}
+
+	printEvents(calendarID, events, currTime)
+}
+
+func printEvents(calendarID string, events *calendar.Events, currTime time.Time) {
+	if len(events.Items) > 0 {
+		fmt.Printf("Upcoming events for %s:\n\n", calendarID)
+
+		for _, i := range events.Items {
+			// If the DateTime is an empty string the Event is an all-day Event.
+			// So only Date is available.
+			if i.Start.DateTime != "" {
+				startTime, err := time.Parse(time.RFC3339, i.Start.DateTime)
+				if err != nil {
+					log.Fatalf("Failed to parse event's time: %v", err)
+				}
+
+				endTime, err := time.Parse(time.RFC3339, i.End.DateTime)
+				if err != nil {
+					log.Fatalf("Failed to parse event's time: %v", err)
+				}
+
+				if currTime.After(startTime) {
+					fmt.Printf("Happening now: %s\n", fmtEvent(i.Summary, parseTimeHumanReadable(startTime), parseTimeHumanReadable(endTime), i.Location))
+				} else {
+					if startTime.Day() == currTime.Day() {
+						fmt.Printf("%s\n", fmtEvent(i.Summary, parseTimeHumanReadable(startTime), parseTimeHumanReadable(endTime), i.Location))
+					} else {
+						fmt.Printf("Not today: ")
+						fmt.Printf("%s\n", fmtEvent(i.Summary, parseTimeHumanReadable(startTime), parseTimeHumanReadable(endTime), i.Location))
+					}
+				}
+			} else {
+				fmt.Printf("Full-day: %s (%s)\n", i.Summary, i.Start.Date)
+			}
+		}
+	} else {
+		fmt.Printf("No upcoming events found.\n")
+	}
+}
+
+func getMatchingCalendar(calendar string, srv *calendar.Service) string {
 	var calendarID string
 	var err error
 	if calendar != "" {
-		calendarID, err = getIDFromList(srv, calendar)
+		calendarID, err = getIDFromList(calendar, srv)
 		if err != nil {
 			log.Fatalf("Unable to find a calendar from the provided calendar %s: %v", calendarID, err)
 		}
@@ -174,42 +221,17 @@ func query(srv *calendar.Service, calendar string) {
 		calendarID = "primary"
 	}
 
-	events, err := srv.Events.List(calendarID).ShowDeleted(false).
-		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(20).OrderBy("startTime").Do()
-	if err != nil {
-		log.Fatalf("Unable to retrieve next ten of the user's events: %v for calendar %s", err, calendarID)
-	}
+	return calendarID
+}
 
-	fmt.Printf("Upcoming events for %s:\n\n", calendarID)
-	if len(events.Items) > 0 {
-		for _, i := range events.Items {
-			var start string
-			var end string
-			// If the DateTime is an empty string the Event is an all-day Event.
-			// So only Date is available.
-			if i.Start.DateTime != "" {
-				start = i.Start.DateTime
-				end = i.End.DateTime
-				startTime, err := time.Parse(time.RFC3339, start)
-				if err != nil {
-					log.Fatalf("Failed to parse event's time: %v", err)
-				}
+func parseTimeHumanReadable(t time.Time) string {
+	// Use this specific format for readability
+	return t.Format("15:04")
+}
 
-				start = onlyShowTime(start)
-				end = onlyShowTime(end)
-				if t.After(startTime) {
-					fmt.Printf("Happening now: %s\n", fmtEvent(i.Summary, start, end, i.Location))
-				} else {
-					fmt.Printf("%s\n", fmtEvent(i.Summary, start, end, i.Location))
-				}
-			} else {
-				start = i.Start.Date
-				fmt.Printf("Full-day: %s (%s)\n", i.Summary, start)
-			}
-		}
-	} else {
-		fmt.Printf("No upcoming events found.\n")
-	}
+func parseTimeDateHumanReadable(t time.Time) string {
+	// Use this specific format for readability
+	return t.Format("Mon Jan _2 15:04")
 }
 
 func fmtEvent(summary, startTime, endTime, location string) string {
@@ -217,17 +239,10 @@ func fmtEvent(summary, startTime, endTime, location string) string {
 		location = "-"
 	}
 
-	return fmt.Sprintf("%s (%s-%s @ %s)", summary, startTime, endTime, location)
+	return fmt.Sprintf("%s %s-%s @ %s", summary, startTime, endTime, location)
 }
 
-// Transforms dateTime to only have hh:mm
-func onlyShowTime(dateTime string) string {
-	time := strings.Split(strings.Split(strings.Split(dateTime, "T")[1], "Z")[0], ":")[:2]
-	result := strings.Join(time, ":")
-	return result
-}
-
-func getIDFromList(srv *calendar.Service, calendarID string) (string, error) {
+func getIDFromList(calendarID string, srv *calendar.Service) (string, error) {
 	list, err := srv.CalendarList.List().Do()
 	if err != nil {
 		return "", err
