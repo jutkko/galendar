@@ -14,21 +14,30 @@ func Query(srv *calendar.Service, calendar string) {
 	tMin := currTime.Format(time.RFC3339)
 	tMax := currTime.Add(48 * time.Hour).Format(time.RFC3339)
 
-	calendarID := getMatchingCalendar(calendar, srv)
+	list, err := srv.CalendarList.List().Do()
+	if err != nil {
+		log.Fatalf("Unable to find the calendar list from the provided service: %v", err)
+	}
+
+	calendarID := getMatchingCalendar(calendar, list.Items)
+	if calendarID == "" {
+		log.Fatalf("No matching calendar from the provided calendar: %s", calendar)
+	}
+
 	events, err := srv.Events.List(calendarID).ShowDeleted(false).
 		SingleEvents(true).TimeMin(tMin).TimeMax(tMax).MaxResults(10).OrderBy("startTime").Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve next ten of the user's events: %v for calendar: %s", err, calendarID)
 	}
 
-	printEvents(calendarID, events, currTime)
+	printEvents(calendarID, events.Items, currTime)
 }
 
-func printEvents(calendarID string, events *calendar.Events, currTime time.Time) {
-	if len(events.Items) > 0 {
+func printEvents(calendarID string, events []*calendar.Event, currTime time.Time) {
+	if len(events) > 0 {
 		fmt.Printf("Upcoming events for %s:\n\n", calendarID)
 
-		for _, i := range events.Items {
+		for _, i := range events {
 			// If the DateTime is an empty string the Event is an all-day Event.
 			// So only Date is available.
 			if i.Start.DateTime != "" {
@@ -61,27 +70,19 @@ func printEvents(calendarID string, events *calendar.Events, currTime time.Time)
 	}
 }
 
-func getMatchingCalendar(calendar string, srv *calendar.Service) string {
-	var calendarID string
-	var err error
-	if calendar != "" {
-		calendarID, err = getIDFromList(calendar, srv)
-		if err != nil {
-			log.Fatalf("Unable to find a calendar from the provided calendar %s: %v", calendarID, err)
-		}
+func getMatchingCalendar(queryCalendar string, calendarListEntries []*calendar.CalendarListEntry) string {
+	var matchingCalendar string
+	if queryCalendar != "" {
+		matchingCalendar = getIDFromList(queryCalendar, calendarListEntries)
 
-		if calendarID == "" {
-			log.Fatalf("No matching calendar from the provided calendar: %s", calendar)
-		}
-
-		if calendar != calendarID {
-			fmt.Printf("No exact match for %s, but found %s\n\n", calendar, calendarID)
+		if queryCalendar != matchingCalendar && matchingCalendar != "" {
+			fmt.Printf("No exact match for %s, but found %s\n\n", queryCalendar, matchingCalendar)
 		}
 	} else {
-		calendarID = "primary"
+		matchingCalendar = "primary"
 	}
 
-	return calendarID
+	return matchingCalendar
 }
 
 func parseTimeHumanReadable(t time.Time) string {
@@ -102,19 +103,13 @@ func fmtEvent(summary, startTime, endTime, location string) string {
 	return fmt.Sprintf("%s %s-%s @ %s", summary, startTime, endTime, location)
 }
 
-func getIDFromList(calendarID string, srv *calendar.Service) (string, error) {
-	list, err := srv.CalendarList.List().Do()
-	if err != nil {
-		return "", err
-	}
-
+func getIDFromList(calendarID string, calendars []*calendar.CalendarListEntry) string {
 	infos := []string{}
 	bagSizes := []int{3}
-	for _, calendar := range list.Items {
+	for _, calendar := range calendars {
 		infos = append(infos, calendar.Id)
 	}
 
 	cm := closestmatch.New(infos, bagSizes)
-
-	return cm.Closest(calendarID), nil
+	return cm.Closest(calendarID)
 }
