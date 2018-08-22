@@ -2,7 +2,7 @@
 This is a golang binary that will retrieve the current and future events from a
 given calendar. 
 
-# How to use
+## How to use
 You want to see what is coming up in someone's calendar? Provided that you have
 access to the calendar, just do `galendar someone@example.com`. An example
 output can look like
@@ -23,14 +23,14 @@ this, you must have the calendar
 [added](https://support.google.com/calendar/answer/37100?co=GENIE.Platform%3DDesktop&hl=en)
 to your calendar list.
 
-# Installation
+## Installation
 Run
 
 ```
 go get github.com/jutkko/galendar
 ```
 
-## Prerequisites
+### Prerequisites
 You will need to have [golang](https://golang.org/dl/) installed on your machine.
 
 galendar calls the [Google Calendar
@@ -44,7 +44,7 @@ After having downloaded the credentials from the docs, please move the file to
 you have created the secret with, the corresponsing calendars will be shown
 when running `galendar`.
 
-# Uninstall
+## Uninstall
 ```
 rm -rf $GOPATH/src/github.com/jutkko/galendar
 rm $GOPATH/bin/galendar
