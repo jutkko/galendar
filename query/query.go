@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/schollz/closestmatch"
 	calendar "google.golang.org/api/calendar/v3"
 )
@@ -12,7 +13,7 @@ import (
 func Query(srv *calendar.Service, calendar string) {
 	currTime := time.Now()
 	tMin := currTime.Format(time.RFC3339)
-	tMax := currTime.Add(48 * time.Hour).Format(time.RFC3339)
+	tMax := currTime.Add(24 * time.Hour).Format(time.RFC3339)
 
 	list, err := srv.CalendarList.List().Do()
 	if err != nil {
@@ -35,9 +36,14 @@ func Query(srv *calendar.Service, calendar string) {
 
 func printEvents(calendarID string, events []*calendar.Event, currTime time.Time) {
 	if len(events) > 0 {
-		fmt.Printf("Upcoming events for %s:\n\n", calendarID)
-
 		for _, i := range events {
+			atts := i.Attendees
+			responseStatus := "accepted"
+			for _, att := range atts {
+				if att.Self {
+					responseStatus = att.ResponseStatus
+				}
+			}
 			// If the DateTime is an empty string the Event is an all-day Event.
 			// So only Date is available.
 			if i.Start.DateTime != "" {
@@ -52,13 +58,15 @@ func printEvents(calendarID string, events []*calendar.Event, currTime time.Time
 				}
 
 				if currTime.After(startTime) {
-					fmt.Printf("Happening now: %s\n", fmtEvent(i.Summary, parseTimeHumanReadable(startTime), parseTimeHumanReadable(endTime), i.Location))
+					green := color.New(color.FgGreen).SprintFunc()
+					fmt.Printf(green("Happening now: %s\n"), fmtEvent(i.Summary, parseTimeHumanReadable(startTime), parseTimeHumanReadable(endTime), i.Location, responseStatus))
 				} else {
 					if startTime.Day() == currTime.Day() {
-						fmt.Printf("%s\n", fmtEvent(i.Summary, parseTimeHumanReadable(startTime), parseTimeHumanReadable(endTime), i.Location))
+						fmt.Printf("%s\n", fmtEvent(i.Summary, parseTimeHumanReadable(startTime), parseTimeHumanReadable(endTime), i.Location, responseStatus))
 					} else {
-						fmt.Printf("Not today: ")
-						fmt.Printf("%s\n", fmtEvent(i.Summary, parseTimeHumanReadable(startTime), parseTimeHumanReadable(endTime), i.Location))
+						yellow := color.New(color.FgYellow).SprintFunc()
+						fmt.Printf(yellow("Not today: "))
+						fmt.Printf("%s\n", fmtEvent(i.Summary, parseTimeHumanReadable(startTime), parseTimeHumanReadable(endTime), i.Location, responseStatus))
 					}
 				}
 			} else {
@@ -66,7 +74,8 @@ func printEvents(calendarID string, events []*calendar.Event, currTime time.Time
 			}
 		}
 	} else {
-		fmt.Printf("No upcoming events found.\n")
+		red := color.New(color.FgRed).SprintFunc()
+		fmt.Printf(red("No upcoming events found.\n"))
 	}
 }
 
@@ -76,7 +85,8 @@ func getMatchingCalendar(queryCalendar string, calendarListEntries []*calendar.C
 		matchingCalendar = getIDFromList(queryCalendar, calendarListEntries)
 
 		if queryCalendar != matchingCalendar && matchingCalendar != "" {
-			fmt.Printf("No exact match for %s, but found %s\n\n", queryCalendar, matchingCalendar)
+			yellow := color.New(color.FgYellow).PrintfFunc()
+			yellow("No exact match for %s, but found %s\n\n", queryCalendar, matchingCalendar)
 		}
 	} else {
 		matchingCalendar = "primary"
@@ -95,12 +105,24 @@ func parseTimeDateHumanReadable(t time.Time) string {
 	return t.Format("Mon Jan _2 15:04")
 }
 
-func fmtEvent(summary, startTime, endTime, location string) string {
+func fmtEvent(summary, startTime, endTime, location, responseStatus string) string {
 	if location == "" {
 		location = "-"
 	}
 
-	return fmt.Sprintf("%s %s-%s @ %s", summary, startTime, endTime, location)
+	toColour := fmt.Sprintf("%s @ %s %s-%s", summary, location, startTime, endTime)
+	if responseStatus == "accepted" {
+		green := color.New(color.FgGreen).SprintFunc()
+		return green(toColour)
+	}
+
+	if responseStatus == "declined" {
+		red := color.New(color.FgRed).SprintFunc()
+		return red(toColour)
+	}
+
+	yellow := color.New(color.FgYellow).SprintFunc()
+	return yellow(toColour)
 }
 
 func getIDFromList(calendarID string, calendars []*calendar.CalendarListEntry) string {

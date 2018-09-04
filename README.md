@@ -7,12 +7,10 @@ You want to see what is coming up in someone's calendar? Provided that you have
 access to the calendar, just do `galendar someone@example.com`. An example
 output can look like
 ```
-Upcoming events for someone@example.com:
-
 Full-day: Weekend Yey 2017-10-08 @ Home
-Happening now: Coding 11:00-11:30 @ -
-Porting Standup 09:30-10:00 @ LON-0-Blue-Blue B (6) [Google Meet, RingCentral, TV]
-Not today: Play badminton 11:30-12:00 @ New York
+Happening now: Coding @ - 11:00-11:30
+Porting Standup @ LON-0-Blue-Blue B (6) [Google Meet, RingCentral, TV] 09:30-10:00 
+Not today: Play badminton @ New York 11:30-12:00 
 ```
 
 ## Fuzzy matching
