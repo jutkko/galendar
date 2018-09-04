@@ -74,17 +74,16 @@ func TestGetMatchingCalendarNoMatch(t *testing.T) {
 }
 
 func TestFmtEvent(t *testing.T) {
-	fmtEvent := fmtEvent("We eat veggie hotdogs!", "10:00", "12:00", "London")
-	if fmtEvent != "We eat veggie hotdogs! 10:00-12:00 @ London" {
-		t.Error("Expected 'We eat veggie hotdogs! 10:00-12:00 @ London' but got ", fmtEvent)
+	fmtEvent := fmtEvent("We eat veggie hotdogs!", "10:00", "12:00", "London", "accepted")
+	if fmtEvent != "We eat veggie hotdogs! @ London 10:00-12:00" {
+		t.Error("Expected 'We eat veggie hotdogs! @ London 10:00-12:00' but got ", fmtEvent)
 	}
 }
 
 func TestFmtEventEmptyLocation(t *testing.T) {
-	exptectedString := "We eat veggie hotdogs! 10:00-12:00 @ -"
-	fmtEvent := fmtEvent("We eat veggie hotdogs!", "10:00", "12:00", "")
-	if fmtEvent != exptectedString {
-		t.Error("Expected 'We eat veggie hotdogs! 10:00-12:00 @ -' but got ", fmtEvent)
+	fmtEvent := fmtEvent("We eat veggie hotdogs!", "10:00", "12:00", "", "declined")
+	if fmtEvent != "We eat veggie hotdogs! @ - 10:00-12:00" {
+		t.Error("Expected 'We eat veggie hotdogs! @ - 10:00-12:00' but got ", fmtEvent)
 	}
 }
 
